@@ -8,16 +8,24 @@ import {CalendarIcon} from "../../components/icons/calendar";
 import {RankStats} from "../../components/rankStats";
 import {ItemKey, MatchApiResponse, MatchListApiResponse, Participant} from "../../types/apis/matches";
 import {PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart} from "recharts";
+import {useToasts} from "react-toast-notifications";
 
 interface IProfileProps {
 	data: ProfileData | null;
 }
 const Profile: React.FC<IProfileProps> = ({data}) => {
 	const router = useRouter();
+	const {addToast} = useToasts();
 	const [isLoading, setIsLoading] = React.useState(true);
 
 	React.useEffect(() => {
-		if (!data) router.back();
+		if (!data) {
+			addToast("Unable to retrieve Summoner profile", {
+				appearance: "warning",
+				autoDismiss: true,
+			});
+			router.back();
+		}
 		if (data) {
 			setIsLoading(false);
 		}
@@ -499,7 +507,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 		profileData.matchData = parseMatch(summonerData.id, matchData, championData);
 		// profileData.championIconUri = getChampionSplashUri(highestMasteredChampionId);
 	} catch (err) {
-		console.log(err);
 		profileData = null;
 	}
 	return {

@@ -1,3 +1,4 @@
+import {ToastProvider} from "react-toast-notifications";
 import "../styles/index.css";
 
 interface IAppProps {
@@ -5,7 +6,11 @@ interface IAppProps {
 	pageProps: object;
 }
 const App: React.FC<IAppProps> = ({Component, pageProps}) => {
-	return <Component {...pageProps} />;
+	return (
+		<ToastProvider>
+			<Component {...pageProps} />
+		</ToastProvider>
+	);
 };
 
 export default App;
