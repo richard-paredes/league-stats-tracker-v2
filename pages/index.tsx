@@ -21,7 +21,7 @@ const Home: React.FC = () => {
 				<div className="p-5 bg-dark rounded font-sans text-center">
 					<LeagueIcon />
 					<h1 className="text-3xl text-white font-bold m-5">Find Your League Stats</h1>
-					<div>
+					<form>
 						<input
 							ref={(input) => input && input.focus()}
 							type="text"
@@ -36,10 +36,11 @@ const Home: React.FC = () => {
 						<button
 							className="bg-red-500 hover:bg-red-600 hover:border-red-600 py-1 px-5 mt-6 mx-5 rounded font-bold font-sans border border-red-500 rounded shadow"
 							onClick={handleClick}
+							type="submit"
 							disabled={!summonerName || submitting}>
 							{submitting ? <CircleIcon /> : <RightArrowIcon />}
 						</button>
-					</div>
+					</form>
 				</div>
 			</div>
 		</Layout>
