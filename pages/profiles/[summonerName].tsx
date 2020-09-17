@@ -382,8 +382,6 @@ const parseMatch = (summonerId: string, match: MatchApiResponse, championData: a
 		(x) => x.participantId === participantIdentity?.participantId
 	) as Participant;
 
-	// TODO: get all the items' images from http://ddragon.leagueoflegends.com/cdn/10.18.1/img/item/${itemId}.png
-
 	const items: ItemData[] = [];
 	for (let i = 0; i <= 5; i++)
 		participant.stats[("item" + i) as ItemKey] &&
@@ -466,7 +464,6 @@ const parseMatch = (summonerId: string, match: MatchApiResponse, championData: a
 			value: trueDamageTaken,
 		},
 	];
-	console.log(participant);
 	return {
 		gameMode: gameModeMap[gameModeKey],
 		endgameStatus,
