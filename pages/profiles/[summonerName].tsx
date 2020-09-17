@@ -9,12 +9,6 @@ import {RankStats} from "../../components/rankStats";
 import {ItemKey, MatchApiResponse, MatchListApiResponse, Participant} from "../../types/apis/matches";
 import {PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart} from "recharts";
 
-const RIOT_API_URI = "https://na1.api.riotgames.com";
-const RIOT_API_TOKEN = "RGAPI-27926ddd-b1ad-4e74-bb08-0c61b04e181b";
-const API_HEADERS = {
-	"X-Riot-Token": RIOT_API_TOKEN,
-};
-
 interface IProfileProps {
 	data: ProfileData | null;
 }
@@ -246,6 +240,239 @@ type ProfileData = {
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
 	let profileData: ProfileData | null = {};
+	const getCurrentAssetsCDNVersion = async () => {
+		const data = await (await fetch(`https://ddragon.leagueoflegends.com/api/versions.json`)).json();
+		return data[0];
+	};
+	const getSummonerApiData = async (summonerName: string): Promise<SummonerApiResponse> => {
+		return (
+			await fetch(
+				`${process.env.RIOT_API_URI}/lol/summoner/v4/summoners/by-name/${summonerName}`,
+				{
+					headers: {
+						"X-Riot-Token": process.env.RIOT_API_TOKEN!,
+					},
+				}
+			)
+		).json();
+	};
+	const getMatchHistoryApiData = async (summonerId: string): Promise<MatchListApiResponse> => {
+		return (
+			await fetch(`${process.env.RIOT_API_URI}/lol/match/v4/matchlists/by-account/${summonerId}`, {
+				headers: {
+					"X-Riot-Token": process.env.RIOT_API_TOKEN!,
+				},
+			})
+		).json();
+	};
+	const getLOLRankedApiData = async (summonerId: string): Promise<RankedApiResponse[]> => {
+		return (
+			await fetch(`${process.env.RIOT_API_URI}/lol/league/v4/entries/by-summoner/${summonerId}`, {
+				headers: {
+					"X-Riot-Token": process.env.RIOT_API_TOKEN!,
+				},
+			})
+		).json();
+	};
+	const getTFTRankedApiData = async (summonerId: string): Promise<RankedApiResponse[]> => {
+		return (
+			await fetch(`${process.env.RIOT_API_URI}/tft/league/v1/entries/by-summoner/${summonerId}`, {
+				headers: {
+					"X-Riot-Token": process.env.RIOT_API_TOKEN!,
+				},
+			})
+		).json();
+	};
+
+	const getSummonerIconUri = (cdnVersion: string, iconId: number) => {
+		return `https://ddragon.leagueoflegends.com/cdn/${cdnVersion}/img/profileicon/${iconId}.png`;
+	};
+	const getRankedImageUri = (tier: string, division: string) => {
+		const romanToArabicMap: Record<string, string> = {
+			I: "1",
+			II: "2",
+			III: "3",
+			IV: "4",
+		};
+		if (tier === "UNRANKED") return `https://cdn.lolchess.gg/images/lol/tier/provisional.png`;
+		else {
+			return `https://cdn.lolchess.gg/images/lol/tier/${tier.toLowerCase()}_${
+				romanToArabicMap[division]
+			}.png`;
+		}
+	};
+
+	const parseRank = (rankedData: RankedApiResponse | undefined, type: string) => {
+		const tier = rankedData?.tier ?? "UNRANKED";
+		const division = rankedData?.rank ?? "";
+		const leaguePoints = rankedData?.leaguePoints ?? "0";
+		const wins = rankedData?.wins?.toString() ?? "0";
+		const losses = rankedData?.losses?.toString() ?? "0";
+		const image = getRankedImageUri(tier, division);
+		return {
+			type,
+			tier,
+			division,
+			leaguePoints,
+			wins,
+			losses,
+			image,
+		} as Rank;
+	};
+	const getMatchApiData = async (matchId: number): Promise<MatchApiResponse> => {
+		return (
+			await fetch(`${process.env.RIOT_API_URI}/lol/match/v4/matches/${matchId}`, {
+				headers: {
+					"X-Riot-Token": process.env.RIOT_API_TOKEN!,
+				},
+			})
+		).json();
+	};
+
+	const getChampionApiData = async (cdnVersion: string, championId: number) => {
+		const allChampionsData = await (
+			await fetch(`https://ddragon.leagueoflegends.com/cdn/${cdnVersion}/data/en_US/champion.json`)
+		).json();
+		const championsList = Object.values(allChampionsData.data);
+		const championInfo = championsList.find((x: any) => x.key === championId.toString());
+		return championInfo;
+	};
+
+	const parseChampionData = (championInfo: any) => {
+		return {
+			imageUri: getChampionLoadingUri(championInfo),
+			name: championInfo.name,
+		};
+	};
+	const getChampionLoadingUri = (championInfo: any) => {
+		return `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${championInfo.id}_0.jpg`;
+	};
+	const parseMatch = (summonerId: string, match: MatchApiResponse, championData: any) => {
+		const participantIdentity = match.participantIdentities.find(
+			(x) => x.player.summonerId === summonerId
+		);
+		const participant = match.participants.find(
+			(x) => x.participantId === participantIdentity?.participantId
+		) as Participant;
+
+		const items: ItemData[] = [];
+		for (let i = 0; i <= 5; i++)
+			participant.stats[("item" + i) as ItemKey] &&
+				items.push({
+					imageUri: `http://ddragon.leagueoflegends.com/cdn/10.18.1/img/item/${
+						participant.stats[("item" + i) as ItemKey]
+					}.png`,
+					key: i,
+				});
+		const kills = participant?.stats.kills;
+		const deaths = participant?.stats.deaths;
+		const assists = participant?.stats.assists;
+		const goldEarned = participant?.stats.goldEarned;
+		const gameModeKey = match.gameMode;
+		const endgameStatus = participant.stats.win
+			? `http://raw.communitydragon.org/10.18/game/assets/ux/endofgame/en_us/victory.png`
+			: `http://raw.communitydragon.org/10.18/game/assets/ux/endofgame/en_us/defeat.png`;
+		const gameDuration = match.gameDuration;
+		const gameDate = new Date(match.gameCreation).toLocaleDateString();
+		const primaryPerk = `https://opgg-static.akamaized.net/images/lol/perk/${participant.stats.perk0}.png`;
+		const secondaryPerk = `https://opgg-static.akamaized.net/images/lol/perkStyle/${participant.stats.perkSubStyle}.png`;
+
+		const gameModeMap = {
+			CLASSIC: "Classic",
+			ODIN: "Dominion/Crystal Scar",
+			ARAM: "ARAM",
+			TUTORIAL: "Tutorial",
+			URF: "URF",
+			DOOMBOTSTEEMO: "Doom Bot",
+			ONEFORALL: "One for All",
+			ASCENSION: "Ascension",
+			FIRSTBLOOD: "Snowdown Showdown",
+			KINGPORO: "Legend of the Poro King",
+			SIEGE: "Nexus Siege",
+			ASSASSINATE: "Blood Hunt Assassin",
+			ARSR: "All Random Summoner's Rift",
+			DARKSTAR: "Dark Star: Singularity",
+			STARGUARDIAN: "Star Guardian Invasion",
+			PROJECT: "PROJECT: Hunters",
+			GAMEMODEX: "Nexus Blitz",
+			ODYSSEY: "Odyssey: Extraction",
+		};
+		const physicalDamageDealt = participant.stats.physicalDamageDealt;
+		const magicDamageDealt = participant.stats.magicDamageDealt;
+		const trueDamageDealt = participant.stats.trueDamageDealt;
+		const physicalDamageTaken = participant.stats.physicalDamageTaken;
+		const magicDamageTaken = participant.stats.magicalDamageTaken;
+		const trueDamageTaken = participant.stats.trueDamageTaken;
+		const visionScore = participant.stats.visionScore;
+		const creepScore = participant.stats.totalMinionsKilled;
+		const damageHealed = participant.stats.totalHeal;
+		const ccTime = participant.stats.timeCCingOthers;
+		const damageDealt = [
+			{
+				name: "Physical",
+				value: physicalDamageDealt,
+			},
+			{
+				name: "Magic",
+				value: magicDamageDealt,
+			},
+			{
+				name: "True",
+				value: trueDamageDealt,
+			},
+		];
+		const damageTaken = [
+			{
+				name: "Physical",
+				value: physicalDamageTaken,
+			},
+			{
+				name: "Magic",
+				value: magicDamageTaken,
+			},
+			{
+				name: "True",
+				value: trueDamageTaken,
+			},
+		];
+		return {
+			gameMode: gameModeMap[gameModeKey],
+			endgameStatus,
+			goldEarned: getCommaDelimitedNumber(goldEarned),
+			kills: getCommaDelimitedNumber(kills),
+			deaths: getCommaDelimitedNumber(deaths),
+			assists: getCommaDelimitedNumber(assists),
+			gameDuration: secondsToHms(gameDuration),
+			damageTaken,
+			damageDealt,
+			gameDate,
+			items,
+			champion: parseChampionData(championData),
+			physicalDamageDealt,
+			magicDamageDealt,
+			trueDamageDealt,
+			physicalDamageTaken,
+			magicDamageTaken,
+			trueDamageTaken,
+			visionScore,
+			creepScore,
+			damageHealed,
+			ccTime,
+			primaryPerk,
+			secondaryPerk,
+		};
+	};
+	const getCommaDelimitedNumber = (x: number) => x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+	const secondsToHms = (d: number) => {
+		const h = Math.floor(d / 3600);
+		const m = Math.floor((d % 3600) / 60);
+		const s = Math.floor((d % 3600) % 60);
+
+		const hDisplay = h > 0 ? h + ":" : "";
+		const mDisplay = m > 0 ? m + ":" : "";
+		const sDisplay = s > 0 ? s + "" : "";
+		return hDisplay + mDisplay + sDisplay;
+	};
 	try {
 		// Fetch data from external API
 		const {summonerName} = context.params!;
@@ -282,224 +509,4 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 	};
 };
 
-const getCurrentAssetsCDNVersion = async () => {
-	const data = await (await fetch(`https://ddragon.leagueoflegends.com/api/versions.json`)).json();
-	return data[0];
-};
-const getSummonerApiData = async (summonerName: string): Promise<SummonerApiResponse> => {
-	return (
-		await fetch(`${RIOT_API_URI}/lol/summoner/v4/summoners/by-name/${summonerName}`, {
-			headers: API_HEADERS,
-		})
-	).json();
-};
-const getMatchHistoryApiData = async (summonerId: string): Promise<MatchListApiResponse> => {
-	return (
-		await fetch(`${RIOT_API_URI}/lol/match/v4/matchlists/by-account/${summonerId}`, {
-			headers: API_HEADERS,
-		})
-	).json();
-};
-const getLOLRankedApiData = async (summonerId: string): Promise<RankedApiResponse[]> => {
-	return (
-		await fetch(`${RIOT_API_URI}/lol/league/v4/entries/by-summoner/${summonerId}`, {
-			headers: API_HEADERS,
-		})
-	).json();
-};
-const getTFTRankedApiData = async (summonerId: string): Promise<RankedApiResponse[]> => {
-	return (
-		await fetch(`${RIOT_API_URI}/tft/league/v1/entries/by-summoner/${summonerId}`, {
-			headers: API_HEADERS,
-		})
-	).json();
-};
-
-const getSummonerIconUri = (cdnVersion: string, iconId: number) => {
-	return `https://ddragon.leagueoflegends.com/cdn/${cdnVersion}/img/profileicon/${iconId}.png`;
-};
-const getRankedImageUri = (tier: string, division: string) => {
-	const romanToArabicMap: Record<string, string> = {
-		I: "1",
-		II: "2",
-		III: "3",
-		IV: "4",
-	};
-	if (tier === "UNRANKED") return `https://cdn.lolchess.gg/images/lol/tier/provisional.png`;
-	else {
-		return `https://cdn.lolchess.gg/images/lol/tier/${tier.toLowerCase()}_${
-			romanToArabicMap[division]
-		}.png`;
-	}
-};
-
-const parseRank = (rankedData: RankedApiResponse | undefined, type: string) => {
-	const tier = rankedData?.tier ?? "UNRANKED";
-	const division = rankedData?.rank ?? "";
-	const leaguePoints = rankedData?.leaguePoints ?? "0";
-	const wins = rankedData?.wins?.toString() ?? "0";
-	const losses = rankedData?.losses?.toString() ?? "0";
-	const image = getRankedImageUri(tier, division);
-	return {
-		type,
-		tier,
-		division,
-		leaguePoints,
-		wins,
-		losses,
-		image,
-	} as Rank;
-};
-const getMatchApiData = async (matchId: number): Promise<MatchApiResponse> => {
-	return (
-		await fetch(`${RIOT_API_URI}/lol/match/v4/matches/${matchId}`, {headers: API_HEADERS})
-	).json();
-};
-
-const getChampionApiData = async (cdnVersion: string, championId: number) => {
-	const allChampionsData = await (
-		await fetch(`https://ddragon.leagueoflegends.com/cdn/${cdnVersion}/data/en_US/champion.json`)
-	).json();
-	const championsList = Object.values(allChampionsData.data);
-	const championInfo = championsList.find((x: any) => x.key === championId.toString());
-	return championInfo;
-};
-
-const parseChampionData = (championInfo: any) => {
-	return {
-		imageUri: getChampionLoadingUri(championInfo),
-		name: championInfo.name,
-	};
-};
-const getChampionLoadingUri = (championInfo: any) => {
-	return `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${championInfo.id}_0.jpg`;
-};
-const parseMatch = (summonerId: string, match: MatchApiResponse, championData: any) => {
-	const participantIdentity = match.participantIdentities.find(
-		(x) => x.player.summonerId === summonerId
-	);
-	const participant = match.participants.find(
-		(x) => x.participantId === participantIdentity?.participantId
-	) as Participant;
-
-	const items: ItemData[] = [];
-	for (let i = 0; i <= 5; i++)
-		participant.stats[("item" + i) as ItemKey] &&
-			items.push({
-				imageUri: `http://ddragon.leagueoflegends.com/cdn/10.18.1/img/item/${
-					participant.stats[("item" + i) as ItemKey]
-				}.png`,
-				key: i,
-			});
-	const kills = participant?.stats.kills;
-	const deaths = participant?.stats.deaths;
-	const assists = participant?.stats.assists;
-	const goldEarned = participant?.stats.goldEarned;
-	const gameModeKey = match.gameMode;
-	const endgameStatus = participant.stats.win
-		? `http://raw.communitydragon.org/10.18/game/assets/ux/endofgame/en_us/victory.png`
-		: `http://raw.communitydragon.org/10.18/game/assets/ux/endofgame/en_us/defeat.png`;
-	const gameDuration = match.gameDuration;
-	const gameDate = new Date(match.gameCreation).toLocaleDateString();
-	const primaryPerk = `https://opgg-static.akamaized.net/images/lol/perk/${participant.stats.perk0}.png`;
-	const secondaryPerk = `https://opgg-static.akamaized.net/images/lol/perkStyle/${participant.stats.perkSubStyle}.png`;
-
-	const gameModeMap = {
-		CLASSIC: "Classic",
-		ODIN: "Dominion/Crystal Scar",
-		ARAM: "ARAM",
-		TUTORIAL: "Tutorial",
-		URF: "URF",
-		DOOMBOTSTEEMO: "Doom Bot",
-		ONEFORALL: "One for All",
-		ASCENSION: "Ascension",
-		FIRSTBLOOD: "Snowdown Showdown",
-		KINGPORO: "Legend of the Poro King",
-		SIEGE: "Nexus Siege",
-		ASSASSINATE: "Blood Hunt Assassin",
-		ARSR: "All Random Summoner's Rift",
-		DARKSTAR: "Dark Star: Singularity",
-		STARGUARDIAN: "Star Guardian Invasion",
-		PROJECT: "PROJECT: Hunters",
-		GAMEMODEX: "Nexus Blitz",
-		ODYSSEY: "Odyssey: Extraction",
-	};
-	// const totalDamageDealt = participant.stats.totalDamageDealt;
-	// const totalDamageTaken = participant.stats.totalDamageTaken;
-	const physicalDamageDealt = participant.stats.physicalDamageDealt;
-	const magicDamageDealt = participant.stats.magicDamageDealt;
-	const trueDamageDealt = participant.stats.trueDamageDealt;
-	const physicalDamageTaken = participant.stats.physicalDamageTaken;
-	const magicDamageTaken = participant.stats.magicalDamageTaken;
-	const trueDamageTaken = participant.stats.trueDamageTaken;
-	const visionScore = participant.stats.visionScore;
-	const creepScore = participant.stats.totalMinionsKilled;
-	const damageHealed = participant.stats.totalHeal;
-	const ccTime = participant.stats.timeCCingOthers;
-	const damageDealt = [
-		{
-			name: "Physical",
-			value: physicalDamageDealt,
-		},
-		{
-			name: "Magic",
-			value: magicDamageDealt,
-		},
-		{
-			name: "True",
-			value: trueDamageDealt,
-		},
-	];
-	const damageTaken = [
-		{
-			name: "Physical",
-			value: physicalDamageTaken,
-		},
-		{
-			name: "Magic",
-			value: magicDamageTaken,
-		},
-		{
-			name: "True",
-			value: trueDamageTaken,
-		},
-	];
-	return {
-		gameMode: gameModeMap[gameModeKey],
-		endgameStatus,
-		goldEarned: getCommaDelimitedNumber(goldEarned),
-		kills: getCommaDelimitedNumber(kills),
-		deaths: getCommaDelimitedNumber(deaths),
-		assists: getCommaDelimitedNumber(assists),
-		gameDuration: secondsToHms(gameDuration),
-		damageTaken,
-		damageDealt,
-		gameDate,
-		items,
-		champion: parseChampionData(championData),
-		physicalDamageDealt,
-		magicDamageDealt,
-		trueDamageDealt,
-		physicalDamageTaken,
-		magicDamageTaken,
-		trueDamageTaken,
-		visionScore,
-		creepScore,
-		damageHealed,
-		ccTime,
-		primaryPerk,
-		secondaryPerk,
-	};
-};
-const getCommaDelimitedNumber = (x: number) => x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-const secondsToHms = (d: number) => {
-	const h = Math.floor(d / 3600);
-	const m = Math.floor((d % 3600) / 60);
-	const s = Math.floor((d % 3600) % 60);
-
-	const hDisplay = h > 0 ? h + ":" : "";
-	const mDisplay = m > 0 ? m + ":" : "";
-	const sDisplay = s > 0 ? s + "" : "";
-	return hDisplay + mDisplay + sDisplay;
-};
 export default Profile;
