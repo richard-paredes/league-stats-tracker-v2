@@ -505,7 +505,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 		profileData.tftRank = parseRank(tftRank, "Ranked Team Fight Tactics");
 		profileData.summonerIconUri = getSummonerIconUri(currentCDNVersion, summonerData.profileIconId);
 		profileData.matchData = parseMatch(summonerData.id, matchData, championData);
-		// profileData.championIconUri = getChampionSplashUri(highestMasteredChampionId);
 	} catch (err) {
 		profileData = null;
 	}
