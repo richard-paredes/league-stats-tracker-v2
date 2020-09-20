@@ -1,21 +1,22 @@
 import React from "react";
-import {useRouter} from "next/router";
-import {Layout} from "../../components/layout";
-import {GetServerSideProps} from "next";
-import {SummonerApiResponse} from "../../types/apis/summoners";
-import {RankedApiResponse} from "../../types/apis/ranks";
-import {CalendarIcon} from "../../components/icons/calendar";
-import {RankStats} from "../../components/rankStats";
-import {ItemKey, MatchApiResponse, MatchListApiResponse, Participant} from "../../types/apis/matches";
-import {PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart} from "recharts";
-import {useToasts} from "react-toast-notifications";
+import { useRouter } from "next/router";
+import { Layout } from "../../components/layout";
+import { GetServerSideProps } from "next";
+import { SummonerApiResponse } from "../../types/apis/summoners";
+import { RankedApiResponse } from "../../types/apis/ranks";
+import { CalendarIcon } from "../../components/icons/calendar";
+import { RankStats } from "../../components/rankStats";
+import { ItemKey, MatchApiResponse, MatchListApiResponse, Participant } from "../../types/apis/matches";
+import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart } from "recharts";
+import { useToasts } from "react-toast-notifications";
 
+//
 interface IProfileProps {
 	data: ProfileData | null;
 }
-const Profile: React.FC<IProfileProps> = ({data}) => {
+const Profile: React.FC<IProfileProps> = ({ data }) => {
 	const router = useRouter();
-	const {addToast} = useToasts();
+	const { addToast } = useToasts();
 	const [isLoading, setIsLoading] = React.useState(true);
 
 	React.useEffect(() => {
@@ -34,9 +35,8 @@ const Profile: React.FC<IProfileProps> = ({data}) => {
 		<Layout>
 			<div className="flex justify-center align-center bg-purple-200 m-0 pt-16 px-5 pb-20">
 				<div
-					className={`my-0 mx-auto flex flex-col justify-center items-center text-center ${
-						isLoading && "animate-pulse space-x-4"
-					}`}>
+					className={`my-0 mx-auto flex flex-col justify-center items-center text-center ${isLoading && "animate-pulse space-x-4"
+						}`}>
 					<div className="">
 						<img
 							src={data?.summonerIconUri}
@@ -64,9 +64,8 @@ const Profile: React.FC<IProfileProps> = ({data}) => {
 			</div>
 			<div className="w-full m-0 -mt-12">
 				<div
-					className={`my-0 mx-auto w-full flex flex-col justify-evenly items-center ${
-						isLoading && "animate-pulse space-x-4"
-					}`}>
+					className={`my-0 mx-auto w-full flex flex-col justify-evenly items-center ${isLoading && "animate-pulse space-x-4"
+						}`}>
 					<div className="flex flex-wrap justify-center w-full" id="summonerStats">
 						<div
 							className="flex flex-wrap justify-center w-3/4 sm:w-auto mb-10 bg-black"
@@ -304,9 +303,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 		};
 		if (tier === "UNRANKED") return `https://cdn.lolchess.gg/images/lol/tier/provisional.png`;
 		else {
-			return `https://cdn.lolchess.gg/images/lol/tier/${tier.toLowerCase()}_${
-				romanToArabicMap[division]
-			}.png`;
+			return `https://cdn.lolchess.gg/images/lol/tier/${tier.toLowerCase()}_${romanToArabicMap[division]
+				}.png`;
 		}
 	};
 
@@ -367,9 +365,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 		for (let i = 0; i <= 5; i++)
 			participant.stats[("item" + i) as ItemKey] &&
 				items.push({
-					imageUri: `http://ddragon.leagueoflegends.com/cdn/10.18.1/img/item/${
-						participant.stats[("item" + i) as ItemKey]
-					}.png`,
+					imageUri: `http://ddragon.leagueoflegends.com/cdn/10.18.1/img/item/${participant.stats[("item" + i) as ItemKey]
+						}.png`,
 					key: i,
 				});
 		const kills = participant?.stats.kills;
@@ -483,7 +480,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 	};
 	try {
 		// Fetch data from external API
-		const {summonerName} = context.params!;
+		const { summonerName } = context.params!;
 		const currentCDNVersion = await getCurrentAssetsCDNVersion();
 		const summonerData = await getSummonerApiData(summonerName as string);
 		const lolRankedData = await getLOLRankedApiData(summonerData.id); // contains Solo 5x5 and Flex
