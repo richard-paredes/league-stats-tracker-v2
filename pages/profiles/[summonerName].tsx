@@ -10,7 +10,7 @@ import { ItemKey, MatchApiResponse, MatchListApiResponse, Participant } from "..
 import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart } from "recharts";
 import { useToasts } from "react-toast-notifications";
 
-//
+
 interface IProfileProps {
 	data: ProfileData | null;
 }
