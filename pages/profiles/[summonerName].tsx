@@ -28,6 +28,7 @@ const Profile: React.FC<IProfileProps> = ({ data }) => {
 			router.back();
 		}
 		if (data) {
+			// console.log(data);
 			setIsLoading(false);
 		}
 	}, [data]);
@@ -369,6 +370,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 						}.png`,
 					key: i,
 				});
+		
 		const kills = participant?.stats.kills;
 		const deaths = participant?.stats.deaths;
 		const assists = participant?.stats.assists;
@@ -401,6 +403,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 			PROJECT: "PROJECT: Hunters",
 			GAMEMODEX: "Nexus Blitz",
 			ODYSSEY: "Odyssey: Extraction",
+			NEXUSBLITZ: "Nexus Blitz"
 		};
 		const physicalDamageDealt = participant.stats.physicalDamageDealt;
 		const magicDamageDealt = participant.stats.magicDamageDealt;
@@ -482,7 +485,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 		// Fetch data from external API
 		const { summonerName } = context.params!;
 		const currentCDNVersion = await getCurrentAssetsCDNVersion();
+		
 		const summonerData = await getSummonerApiData(summonerName as string);
+
 		const lolRankedData = await getLOLRankedApiData(summonerData.id); // contains Solo 5x5 and Flex
 		const tftRankedData = await getTFTRankedApiData(summonerData.id);
 		const matchHistoryData = await getMatchHistoryApiData(summonerData.accountId); // sorted by most recent
@@ -494,7 +499,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 		const flexRank = lolRankedData.find((x) => x.queueType === "RANKED_FLEX_SR");
 		const tftRank = tftRankedData.find((x) => x.queueType === "RANKED_TFT");
 		const lastPlayedDate = new Date(matchHistoryData.matches[0]?.timestamp).toLocaleString();
-
+		
 		profileData.summonerName = summonerData.name;
 		profileData.lastPlayedDate = lastPlayedDate;
 		profileData.soloRank = parseRank(soloRank, "Ranked Solo");
@@ -502,6 +507,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 		profileData.tftRank = parseRank(tftRank, "Ranked Team Fight Tactics");
 		profileData.summonerIconUri = getSummonerIconUri(currentCDNVersion, summonerData.profileIconId);
 		profileData.matchData = parseMatch(summonerData.id, matchData, championData);
+		
 	} catch (err) {
 		profileData = null;
 	}
