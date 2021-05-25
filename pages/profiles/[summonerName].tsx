@@ -9,6 +9,7 @@ import { RankStats } from "../../components/rankStats";
 import { ItemKey, MatchApiResponse, MatchListApiResponse, Participant } from "../../types/apis/matches";
 import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart } from "recharts";
 import { useToasts } from "react-toast-notifications";
+import { ProfileData, Rank, ItemData } from "../../types";
 
 
 interface IProfileProps {
@@ -58,7 +59,7 @@ const Profile: React.FC<IProfileProps> = ({ data }) => {
 							id="summonerStats">
 							<RankStats rank={data?.soloRank} bgColor="dark" />
 							<RankStats rank={data?.flexRank} bgColor="dark" />
-							<RankStats rank={data?.tftRank} bgColor="dark" />
+							{/* <RankStats rank={data?.tftRank} bgColor="dark" /> */}
 						</div>
 					</div>
 				</div>
@@ -202,52 +203,9 @@ const Profile: React.FC<IProfileProps> = ({ data }) => {
 	);
 };
 
-export type Rank = {
-	type: string;
-	tier: string;
-	division: string;
-	leaguePoints: string;
-	wins: string;
-	losses: string;
-	image: string;
-};
-export type ChampionData = {
-	imageUri: string;
-	name: string;
-};
-export type ItemData = {
-	imageUri: string;
-	key: number;
-};
-export type MatchData = {
-	gameMode: string;
-	kills: string;
-	deaths: string;
-	assists: string;
-	items: ItemData[];
-	champion: ChampionData;
-	endgameStatus: string;
-	goldEarned: string;
-	damageDealt: object[];
-	damageTaken: object[];
-	gameDuration: string;
-	gameDate: string;
-	primaryPerk: string;
-	secondaryPerk: string;
-};
-
-type ProfileData = {
-	summonerName?: string;
-	summonerIconUri?: string;
-	soloRank?: Rank;
-	flexRank?: Rank;
-	tftRank?: Rank;
-	lastPlayedDate?: string;
-	matchData?: MatchData;
-};
-
 export const getServerSideProps: GetServerSideProps = async (context) => {
 	let profileData: ProfileData | null = {};
+	
 	const getCurrentAssetsCDNVersion = async () => {
 		const data = await (await fetch(`https://ddragon.leagueoflegends.com/api/versions.json`)).json();
 		return data[0];
@@ -487,26 +445,25 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 		const currentCDNVersion = await getCurrentAssetsCDNVersion();
 		
 		const summonerData = await getSummonerApiData(summonerName as string);
-
 		const lolRankedData = await getLOLRankedApiData(summonerData.id); // contains Solo 5x5 and Flex
-		const tftRankedData = await getTFTRankedApiData(summonerData.id);
+		// const tftRankedData = await getTFTRankedApiData(summonerData.id);
 		const matchHistoryData = await getMatchHistoryApiData(summonerData.accountId); // sorted by most recent
 		const mostRecentMatch = matchHistoryData.matches[0];
 		const matchData = await getMatchApiData(mostRecentMatch.gameId);
 		const championData = await getChampionApiData(currentCDNVersion, mostRecentMatch.champion);
-
+		
 		const soloRank = lolRankedData.find((x) => x.queueType === "RANKED_SOLO_5x5");
 		const flexRank = lolRankedData.find((x) => x.queueType === "RANKED_FLEX_SR");
-		const tftRank = tftRankedData.find((x) => x.queueType === "RANKED_TFT");
+		// const tftRank = tftRankedData.find((x) => x.queueType === "RANKED_TFT");
 		const lastPlayedDate = new Date(matchHistoryData.matches[0]?.timestamp).toLocaleString();
-		
 		profileData.summonerName = summonerData.name;
 		profileData.lastPlayedDate = lastPlayedDate;
 		profileData.soloRank = parseRank(soloRank, "Ranked Solo");
 		profileData.flexRank = parseRank(flexRank, "Ranked Flex");
-		profileData.tftRank = parseRank(tftRank, "Ranked Team Fight Tactics");
+		// profileData.tftRank = parseRank(tftRank, "Ranked Team Fight Tactics");
 		profileData.summonerIconUri = getSummonerIconUri(currentCDNVersion, summonerData.profileIconId);
 		profileData.matchData = parseMatch(summonerData.id, matchData, championData);
+		
 		
 	} catch (err) {
 		profileData = null;
