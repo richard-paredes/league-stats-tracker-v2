@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Rank} from "../pages/profiles/[summonerName]";
+import { Rank } from "../types";
 
 interface IRankStatsProps {
 	rank?: Rank;

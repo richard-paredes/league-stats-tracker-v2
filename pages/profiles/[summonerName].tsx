@@ -29,7 +29,6 @@ const Profile: React.FC<IProfileProps> = ({ data }) => {
 			router.back();
 		}
 		if (data) {
-			// console.log(data);
 			setIsLoading(false);
 		}
 	}, [data]);
@@ -240,15 +239,15 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 			})
 		).json();
 	};
-	const getTFTRankedApiData = async (summonerId: string): Promise<RankedApiResponse[]> => {
-		return (
-			await fetch(`${process.env.RIOT_API_URI}/tft/league/v1/entries/by-summoner/${summonerId}`, {
-				headers: {
-					"X-Riot-Token": process.env.RIOT_API_TOKEN!,
-				},
-			})
-		).json();
-	};
+	// const getTFTRankedApiData = async (summonerId: string): Promise<RankedApiResponse[]> => {
+	// 	return (
+	// 		await fetch(`${process.env.RIOT_API_URI}/tft/league/v1/entries/by-summoner/${summonerId}`, {
+	// 			headers: {
+	// 				"X-Riot-Token": process.env.RIOT_API_TOKEN!,
+	// 			},
+	// 		})
+	// 	).json();
+	// };
 
 	const getSummonerIconUri = (cdnVersion: string, iconId: number) => {
 		return `https://ddragon.leagueoflegends.com/cdn/${cdnVersion}/img/profileicon/${iconId}.png`;
